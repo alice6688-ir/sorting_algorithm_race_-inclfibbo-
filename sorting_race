@@ -1,0 +1,363 @@
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import numpy as np
+import time
+import random
+from collections import deque
+
+class SortingAlgorithms:
+    @staticmethod
+    def bubble_sort(arr, visualizer=None):
+        n = len(arr)
+        for i in range(n):
+            for j in range(0, n - i - 1):
+                if arr[j] > arr[j + 1]:
+                    arr[j], arr[j + 1] = arr[j + 1], arr[j]
+                    if visualizer:
+                        visualizer.update_visualization(arr, [j, j + 1])
+        return arr
+
+    @staticmethod
+    def selection_sort(arr, visualizer=None):
+        n = len(arr)
+        for i in range(n):
+            min_idx = i
+            for j in range(i + 1, n):
+                if arr[j] < arr[min_idx]:
+                    min_idx = j
+            arr[i], arr[min_idx] = arr[min_idx], arr[i]
+            if visualizer:
+                visualizer.update_visualization(arr, [i, min_idx])
+        return arr
+
+    @staticmethod
+    def insertion_sort(arr, visualizer=None):
+        for i in range(1, len(arr)):
+            key = arr[i]
+            j = i - 1
+            while j >= 0 and arr[j] > key:
+                arr[j + 1] = arr[j]
+                j -= 1
+                if visualizer:
+                    visualizer.update_visualization(arr, [j + 1, j + 2])
+            arr[j + 1] = key
+        return arr
+
+    @staticmethod
+    def fibonacci_sort(arr, visualizer=None):
+        """
+        Custom Fibonacci-based sorting algorithm.
+        Uses Fibonacci sequence to determine comparison intervals,
+        sorting elements as it encounters them along the sequence.
+        """
+        if len(arr) <= 1:
+            return arr
+
+        # Generate Fibonacci sequence up to array length
+        fib_sequence = [1, 1]
+        while fib_sequence[-1] < len(arr):
+            fib_sequence.append(fib_sequence[-1] + fib_sequence[-2])
+
+        # Create a copy to work with
+        result = arr[:]
+
+        # Sort using Fibonacci intervals
+        for fib_num in fib_sequence:
+            if fib_num >= len(result):
+                break
+
+            # For each Fibonacci number, perform mini-sorts on segments
+            step = min(fib_num, len(result))
+
+            for start in range(0, len(result), step):
+                end = min(start + step, len(result))
+                segment = result[start:end]
+
+                # Sort the segment using insertion sort
+                for i in range(1, len(segment)):
+                    key = segment[i]
+                    j = i - 1
+                    while j >= 0 and segment[j] > key:
+                        segment[j + 1] = segment[j]
+                        j -= 1
+                    segment[j + 1] = key
+
+                # Update the main array
+                result[start:end] = segment
+
+                if visualizer:
+                    visualizer.update_visualization(result, list(range(start, end)))
+
+        # Final pass to ensure complete sorting
+        for i in range(1, len(result)):
+            key = result[i]
+            j = i - 1
+            while j >= 0 and result[j] > key:
+                result[j + 1] = result[j]
+                j -= 1
+                if visualizer:
+                    visualizer.update_visualization(result, [j + 1, i])
+            result[j + 1] = key
+
+        return result
+
+class SortingVisualizer:
+    def __init__(self, algorithms, data_size=50):
+        self.algorithms = algorithms
+        self.data_size = data_size
+        self.original_data = list(range(1, data_size + 1))
+        random.shuffle(self.original_data)
+
+        # Setup the plot
+        self.fig, self.axes = plt.subplots(2, 2, figsize=(15, 10))
+        self.fig.suptitle('Sorting Algorithm Race', fontsize=16, fontweight='bold')
+        self.axes = self.axes.flatten()
+
+        # Initialize bars for each algorithm
+        self.bars = []
+        self.algorithm_names = list(algorithms.keys())
+
+        for i, (name, _) in enumerate(algorithms.items()):
+            ax = self.axes[i]
+            ax.set_title(f'{name}', fontsize=14, fontweight='bold')
+            ax.set_ylim(0, data_size + 5)
+            ax.set_xlim(-0.5, data_size - 0.5)
+
+            bars = ax.bar(range(len(self.original_data)), self.original_data,
+                         color='lightblue', edgecolor='black', linewidth=0.5)
+            self.bars.append(bars)
+
+        plt.tight_layout()
+
+        # Track sorting states
+        self.sorting_data = {}
+        self.sorting_steps = {}
+        self.current_highlights = {}
+
+        for name in self.algorithm_names:
+            self.sorting_data[name] = self.original_data[:]
+            self.sorting_steps[name] = []
+            self.current_highlights[name] = []
+
+    def update_visualization(self, arr, highlighted_indices):
+        # This would be called by sorting algorithms in a real-time version
+        pass
+
+    def race_algorithms(self):
+        """Run all algorithms and collect their steps"""
+        results = {}
+
+        for name, algorithm in self.algorithms.items():
+            print(f"Running {name}...")
+            data_copy = self.original_data[:]
+
+            start_time = time.time()
+            if name == "Fibonacci Sort":
+                # Special handling for our custom algorithm
+                sorted_data = algorithm(data_copy)
+            else:
+                sorted_data = algorithm(data_copy)
+            end_time = time.time()
+
+            results[name] = {
+                'time': end_time - start_time,
+                'data': sorted_data,
+                'comparisons': len(data_copy) * len(data_copy)  # Rough estimate
+            }
+
+        return results
+
+    def animate_race(self):
+        """Create an animated visualization of the race"""
+        results = self.race_algorithms()
+
+        # Create a summary plot
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+        # Time comparison
+        names = list(results.keys())
+        times = [results[name]['time'] for name in names]
+        colors = ['red', 'blue', 'green', 'orange']
+
+        bars1 = ax1.bar(names, times, color=colors)
+        ax1.set_title('Algorithm Execution Times', fontsize=14, fontweight='bold')
+        ax1.set_ylabel('Time (seconds)')
+        ax1.tick_params(axis='x', rotation=45)
+
+        # Add time labels on bars
+        for i, (bar, time_val) in enumerate(zip(bars1, times)):
+            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.0001,
+                    f'{time_val:.4f}s', ha='center', va='bottom', fontweight='bold')
+
+        # Final sorted visualization
+        x = range(len(self.original_data))
+        ax2.plot(x, sorted(self.original_data), 'g-', linewidth=2, label='Target (Sorted)')
+        ax2.set_title('Final Result - All Algorithms', fontsize=14, fontweight='bold')
+        ax2.set_xlabel('Index')
+        ax2.set_ylabel('Value')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
+        # Print detailed results
+        print("\n" + "="*60)
+        print("SORTING ALGORITHM RACE RESULTS")
+        print("="*60)
+        print(f"Array Size: {self.data_size}")
+        print(f"Original Array: {self.original_data[:10]}..." if len(self.original_data) > 10 else f"Original Array: {self.original_data}")
+        print("-"*60)
+
+        sorted_results = sorted(results.items(), key=lambda x: x[1]['time'])
+
+        for i, (name, result) in enumerate(sorted_results):
+            rank_emoji = ["🥇", "🥈", "🥉", "🏅"][i] if i < 4 else "📊"
+            print(f"{rank_emoji} {i+1}. {name}:")
+            print(f"   Time: {result['time']:.6f} seconds")
+            print(f"   Correctly Sorted: {'✅' if result['data'] == sorted(self.original_data) else '❌'}")
+            print()
+
+    def demonstrate_fibonacci_algorithm(self):
+        """Show how the Fibonacci sorting algorithm works step by step"""
+        print("\n" + "="*60)
+        print("FIBONACCI SORTING ALGORITHM DEMONSTRATION")
+        print("="*60)
+
+        # Use a smaller array for demonstration
+        demo_array = [8, 3, 5, 4, 7, 6, 1, 2]
+        print(f"Original Array: {demo_array}")
+        print("Position numbers: [1, 2, 3, 4, 5, 6, 7, 8]")
+
+        # Generate Fibonacci sequence for positions
+        fib_sequence = [1, 2]
+        while fib_sequence[-1] <= len(demo_array):
+            fib_sequence.append(fib_sequence[-1] + fib_sequence[-2])
+
+        # Filter valid positions
+        valid_fib_positions = [pos for pos in fib_sequence if pos <= len(demo_array)]
+
+        print(f"Fibonacci positions to visit: {valid_fib_positions}")
+        print("-"*60)
+
+        # Show the sorting process
+        result = demo_array[:]
+        step_num = 1
+
+        for fib_pos in valid_fib_positions:
+            if fib_pos > len(result):
+                break
+
+            array_index = fib_pos - 1  # Convert to 0-based indexing
+            current_value = result[array_index]
+
+            print(f"Step {step_num}: Visiting position {fib_pos} (value = {current_value})")
+            print(f"  Current array: {result}")
+
+            # Find where this value should be inserted in the sorted portion
+            insert_pos = array_index
+            for j in range(array_index):
+                if result[j] > current_value:
+                    insert_pos = j
+                    break
+
+            # Perform the insertion if needed
+            if insert_pos < array_index:
+                # Remove the value from current position
+                value_to_insert = result.pop(array_index)
+                # Insert it at the correct position
+                result.insert(insert_pos, value_to_insert)
+                print(f"  → Moved {current_value} from position {fib_pos} to position {insert_pos + 1}")
+                print(f"  → Array after move: {result}")
+            else:
+                print(f"  → Value {current_value} already in correct relative position")
+
+            print()
+            step_num += 1
+
+        # Final cleanup pass
+        print("Final cleanup pass (insertion sort)...")
+        original_result = result[:]
+        for i in range(1, len(result)):
+            key = result[i]
+            j = i - 1
+            while j >= 0 and result[j] > key:
+                result[j + 1] = result[j]
+                j -= 1
+            result[j + 1] = key
+
+        if result != original_result:
+            print(f"  Final adjustments made: {original_result} → {result}")
+        else:
+            print(f"  No additional changes needed")
+
+        print(f"Final Result: {result}")
+        print(f"Correctly Sorted: {'✅' if result == sorted(demo_array) else '❌'}")
+
+        print("\nHow it works:")
+        print("1. Visit array positions in Fibonacci sequence order (1st, 2nd, 3rd, 5th, 8th, etc.)")
+        print("2. For each position visited, move that value to its correct spot in the sorted portion")
+        print("3. Continue until all Fibonacci positions have been processed")
+        print("4. Final insertion sort pass to handle any remaining unsorted elements")
+
+def main():
+    # Define the algorithms to race
+    algorithms = {
+        "Bubble Sort": SortingAlgorithms.bubble_sort,
+        "Selection Sort": SortingAlgorithms.selection_sort,
+        "Insertion Sort": SortingAlgorithms.insertion_sort,
+        "Fibonacci Sort": SortingAlgorithms.fibonacci_sort
+    }
+
+    # Create visualizer
+    print("🏁 Welcome to the Sorting Algorithm Race! 🏁")
+    print("Preparing algorithms for competition...")
+
+    # Ask user for array size
+    print("\nChoose array size for the race:")
+    print("1. Small (100 elements) - Fast, good for testing")
+    print("2. Medium (1000 elements) - Balanced timing")
+    print("3. Large (5000 elements) - Clear performance differences")
+    print("4. Extra Large (10000 elements) - Dramatic differences (Warning: Bubble sort will be slow!)")
+
+    choice = input("Enter choice (1-4) or press Enter for Medium: ").strip()
+
+    size_map = {
+        "1": 100,
+        "2": 1000,
+        "3": 5000,
+        "4": 10000,
+        "": 1000  # default
+    }
+
+    data_size = size_map.get(choice, 1000)
+
+    if data_size >= 5000:
+        print(f"\n⚠️  Warning: With {data_size} elements, Bubble Sort may take a while!")
+        proceed = input("Continue? (y/n): ").strip().lower()
+        if proceed != 'y':
+            print("Race cancelled. Try a smaller size!")
+            return
+
+    visualizer = SortingVisualizer(algorithms, data_size=data_size)
+
+    # First, demonstrate how the Fibonacci algorithm works
+    visualizer.demonstrate_fibonacci_algorithm()
+
+    # Then run the race
+    print(f"\n🚦 Starting the race with {data_size} elements...")
+    visualizer.animate_race()
+
+    print("\n🎉 Race completed! Check the visualization above for results.")
+    print("\nThe Fibonacci Sort algorithm works by:")
+    print("1. Generating Fibonacci numbers up to the array length")
+    print("2. Using these numbers as segment sizes for partial sorting")
+    print("3. Sorting segments of Fibonacci lengths iteratively")
+    print("4. Performing a final pass to ensure complete sorting")
+
+    # Keep the plot windows open
+    input("\nPress Enter to close the visualization windows...")
+    plt.close('all')
+
+if __name__ == "__main__":
+    main()
